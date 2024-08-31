@@ -1,6 +1,8 @@
 #include <iostream>
 #include <memory>  // for allocator, __shared_ptr_access
 #include <string>  // for char_traits, operator+, string, basic_string
+#include <chrono>
+#include <thread>
 
 #include "ftxui/component/captured_mouse.hpp"  // for ftxui
 #include "ftxui/component/component.hpp"       // for Input, Renderer, Vertical
@@ -9,6 +11,18 @@
 #include "ftxui/component/screen_interactive.hpp"  // for Component, ScreenInteractive
 #include "ftxui/dom/elements.hpp"  // for text, hbox, separator, Element, operator|, vbox, border
 #include "ftxui/util/ref.hpp"  // for Ref
+
+
+std::string toLowercase(const std::string &str) {
+    std::string result = "";
+
+    for (char ch: str) {
+        // Convert each character to lowercase using tolower
+        result += tolower(ch);
+    }
+
+    return result;
+}
 
 
 int main() {
@@ -20,12 +34,78 @@ int main() {
     std::string password;
     std::string phoneNumber;
 
-    // The basic input components:
-    InputOption password_option;
-    password_option.password = true;
+    const LinearGradient baseColor = LinearGradient(Color::SkyBlue1, Color::DeepSkyBlue4);
+    const std::string initialSpace = "            ";
+    const std::string secondSpace = "                ";
+    const std::string thirdSpace = "                ";
 
-    Component input_first_name = Input(&first_name, "", password_option);
+    std::vector<Element> statements;
+
+    std::atomic<bool> responding = false;
+
+    Component input_first_name;
+
+    // The basic input components:
+    InputOption input_option;
+    input_option.multiline = false;
+
+
+    Component renderer;
+    auto screen = ScreenInteractive::TerminalOutput();
+
+
+    std::vector<std::thread> threads;
+    input_option.on_enter = [&] {
+        if (responding) {
+            return;
+        }
+        //Insert user response in chat
+        statements.push_back(hbox({color(baseColor, text("YOU: ")), color(Color::BlueLight, text(first_name))}));
+
+        //Insert chatbot response in chat
+        std::basic_string prompt = toLowercase(first_name);
+        if (prompt.find("good") != std::string::npos || prompt.find("fine") != std::string::npos) {
+            statements.push_back(hbox({color(baseColor, text("Them: ")),
+                                       color(Color::BlueLight, text("GOOD TO HEAR!"))}));
+            threads.emplace_back([&baseColor, &statements, &screen, &responding, &initialSpace, &secondSpace, &thirdSpace, &input_first_name]() {
+                responding = true;
+                std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                statements.push_back(hbox({color(baseColor, text("Them: ")),
+                                           color(Color::BlueLight, text("TELL ME MORE ABOUT YOURSELF"))}));
+                screen.PostEvent(Event::Custom);
+                responding = false;
+            });
+
+        } else if (prompt.find("bad") != std::string::npos || prompt.find("terrible") != std::string::npos) {
+            statements.push_back(hbox({color(baseColor, text("Them: ")),
+                                       color(Color::BlueLight, text("I AM SORRY TO HEAR THAT!"))}));
+            threads.emplace_back([&baseColor, &statements, &screen, &responding]() {
+                responding = true;
+                std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                statements.push_back(hbox({color(baseColor, text("Them: ")),
+                                           color(Color::BlueLight, text("WHAT IS BOTHERING YOU"))}));
+                screen.PostEvent(Event::Custom);
+                responding = false;
+
+            });
+        } else {
+            statements.push_back(hbox({color(baseColor, text("Them: ")),
+                                       color(Color::BlueLight,
+                                             text("COULD YOU ELABORATE? I DID NOT UNDERSTAND YOU"))}));
+        }
+
+        //Insert new user chat box option for the next message
+        InputOption new_input_option;
+        new_input_option.multiline = false;
+        new_input_option.on_enter = input_option.on_enter;
+        first_name = "";
+        input_first_name = Input(&first_name, "", new_input_option);
+    };
+
+    input_first_name = Input(&first_name, "", input_option);
     Component input_last_name = Input(&last_name, "last name");
+
+    InputOption password_option;
     password_option.password = true;
     Component input_password = Input(&password, "password", password_option);
 
@@ -48,11 +128,7 @@ int main() {
                                          });
 
     // Tweak how the component tree is rendered:
-    const LinearGradient baseColor = LinearGradient(Color::SkyBlue1, Color::DeepSkyBlue4);
-    const std::string initialSpace = "            ";
-    const std::string secondSpace = "                ";
-    const std::string thirdSpace = "                ";
-    auto renderer = Renderer(component, [&] {
+    renderer = Renderer(component, [&] {
         return vbox({
                             color(baseColor, text("Welcome to")),
                             //HOW ARE YOU
@@ -78,24 +154,15 @@ int main() {
                             hbox({
                                          color(baseColor, text("Them: ")),
                                          color(Color::BlueLight, text("HOW ARE YOU?"))}),
-
-
+                            vbox(statements),
 
                             hbox({
-                                    color(baseColor, text("YOU: ")),
-                                    input_first_name->Render()}),
-                            /*hbox(text(" Last name  : "), input_last_name->Render()),
-                            hbox(text(" Password   : "), input_password->Render()),
-                            hbox(text(" Phone num  : "), input_phone_number->Render()),
-                            separator(),
-                            text("Hello " + first_name + " " + last_name),
-                            text("Your password is " + password),
-                            text("Your phone number is " + phoneNumber),*/
+                                         color(baseColor, text("YOU: ")),
+                                         input_first_name->Render()}),
                     }); //|
         //border;
     });
 
-    auto screen = ScreenInteractive::TerminalOutput();
     screen.Loop(renderer);
     return 0;
 }

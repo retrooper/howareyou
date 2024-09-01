@@ -13,6 +13,18 @@
 #include "ftxui/util/ref.hpp"  // for Ref
 
 
+std::string toUppercase(const std::string &str) {
+    std::string result = "";
+
+    for (char ch: str) {
+        // Convert each character to lowercase using tolower
+        result += toupper(ch);
+    }
+
+    return result;
+}
+
+
 std::string toLowercase(const std::string &str) {
     std::string result = "";
 
@@ -67,27 +79,37 @@ int main() {
         if (prompt.find("good") != std::string::npos || prompt.find("fine") != std::string::npos) {
             statements.push_back(hbox({color(baseColor, text("Them: ")),
                                        color(Color::BlueLight, text("GOOD TO HEAR!"))}));
-            threads.emplace_back([&baseColor, &statements, &screen, &responding, &initialSpace, &secondSpace, &thirdSpace, &input_first_name]() {
-                responding = true;
-                std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-                statements.push_back(hbox({color(baseColor, text("Them: ")),
-                                           color(Color::BlueLight, text("TELL ME MORE ABOUT YOURSELF"))}));
-                screen.PostEvent(Event::Custom);
-                responding = false;
-            });
+            threads.emplace_back(
+                    [&baseColor, &statements, &screen, &responding]() {
+                        responding = true;
+                        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                        statements.push_back(hbox({color(baseColor, text("Them: ")),
+                                                   color(Color::BlueLight, text("TELL ME MORE ABOUT YOURSELF"))}));
+                        screen.PostEvent(Event::Custom);
+                        responding = false;
+                    });
 
         } else if (prompt.find("bad") != std::string::npos || prompt.find("terrible") != std::string::npos) {
             statements.push_back(hbox({color(baseColor, text("Them: ")),
-                                       color(Color::BlueLight, text("I AM SORRY TO HEAR THAT!"))}));
+                                       color(Color::BlueLight, text("I AM SORRY TO HEAR THAT."))}));
             threads.emplace_back([&baseColor, &statements, &screen, &responding]() {
                 responding = true;
                 std::this_thread::sleep_for(std::chrono::milliseconds(2000));
                 statements.push_back(hbox({color(baseColor, text("Them: ")),
-                                           color(Color::BlueLight, text("WHAT IS BOTHERING YOU"))}));
+                                           color(Color::BlueLight, text("WHAT IS BOTHERING YOU?"))}));
                 screen.PostEvent(Event::Custom);
                 responding = false;
 
             });
+        } else if (prompt.find('i') != std::string::npos && prompt.find("my") != std::string::npos) {
+            std::string response = prompt.replace(prompt.find('i'), 1, "YOU")
+                    .replace(prompt.find("my"), 2, "YOUR");
+
+            if (response.find("me") != std::string::npos) {
+                response = response.replace(prompt.find("me"), 2, "YOU");
+            }
+            statements.push_back(hbox({color(baseColor, text("Them: ")),
+                                       color(Color::BlueLight, text(toUppercase(response)))}));
         } else {
             statements.push_back(hbox({color(baseColor, text("Them: ")),
                                        color(Color::BlueLight,
@@ -130,6 +152,7 @@ int main() {
     // Tweak how the component tree is rendered:
     renderer = Renderer(component, [&] {
         return vbox({
+                            separator(),
                             color(baseColor, text("Welcome to")),
                             //HOW ARE YOU
                             text(""),
@@ -164,5 +187,6 @@ int main() {
     });
 
     screen.Loop(renderer);
+    threads.clear();
     return 0;
 }

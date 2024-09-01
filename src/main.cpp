@@ -11,8 +11,7 @@
 #include "ftxui/component/screen_interactive.hpp"  // for Component, ScreenInteractive
 #include "ftxui/dom/elements.hpp"  // for text, hbox, separator, Element, operator|, vbox, border
 #include "ftxui/util/ref.hpp"  // for Ref
-
-
+#include "openai.h"
 std::string toUppercase(const std::string &str) {
     std::string result = "";
 
@@ -36,8 +35,15 @@ std::string toLowercase(const std::string &str) {
     return result;
 }
 
+void requestToOpenAI(const std::string &prompt, const std::string &model) {
+
+}
+
 
 int main() {
+
+
+    openai::start(OPENAI_KEY, "testing howareyou chatbot");
     using namespace ftxui;
 
     // The data:
@@ -66,6 +72,9 @@ int main() {
     auto screen = ScreenInteractive::TerminalOutput();
 
 
+
+    //Insert chatbot response in chat
+
     std::vector<std::thread> threads;
     input_option.on_enter = [&] {
         if (responding) {
@@ -74,7 +83,8 @@ int main() {
         //Insert user response in chat
         statements.push_back(hbox({color(baseColor, text("YOU: ")), color(Color::BlueLight, text(first_name))}));
 
-        //Insert chatbot response in chat
+
+        /*
         std::basic_string prompt = toLowercase(first_name);
         if (prompt.find("good") != std::string::npos || prompt.find("fine") != std::string::npos) {
             statements.push_back(hbox({color(baseColor, text("Them: ")),
@@ -114,7 +124,7 @@ int main() {
             statements.push_back(hbox({color(baseColor, text("Them: ")),
                                        color(Color::BlueLight,
                                              text("COULD YOU ELABORATE? I DID NOT UNDERSTAND YOU"))}));
-        }
+        }*/
 
         //Insert new user chat box option for the next message
         InputOption new_input_option;

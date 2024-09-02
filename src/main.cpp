@@ -12,6 +12,9 @@
 #include "ftxui/dom/elements.hpp"  // for text, hbox, separator, Element, operator|, vbox, border
 #include "ftxui/util/ref.hpp"  // for Ref
 #include "openai.h"
+
+static const std::string OPENAI_KEY = "";
+
 std::string toUppercase(const std::string &str) {
     std::string result = "";
 
@@ -43,7 +46,10 @@ void requestToOpenAI(const std::string &prompt, const std::string &model) {
 int main() {
 
 
-    openai::start(OPENAI_KEY, "testing howareyou chatbot");
+    openai::start(OPENAI_KEY);
+
+
+    std::cout << completion.dump(2) << std::endl;
     using namespace ftxui;
 
     // The data:
@@ -82,6 +88,15 @@ int main() {
         }
         //Insert user response in chat
         statements.push_back(hbox({color(baseColor, text("YOU: ")), color(Color::BlueLight, text(first_name))}));
+
+        //Insert chatbot response in chat
+        auto completion = openai::completion().create(openai::Json({
+            {"model", "gpt-4o-mini"},
+            {"prompt", first_name},
+            {"temperature", 0}
+        }));
+
+        statements.push_back(hbox({color(baseColor, text("Them: ")), color(Color::BlueLight, text(completion.dump(2)))}));
 
 
         /*

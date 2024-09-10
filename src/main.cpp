@@ -6,15 +6,10 @@
 
 #include "ftxui/component/captured_mouse.hpp"  // for ftxui
 #include "ftxui/component/component.hpp"       // for Input, Renderer, Vertical
-#include "ftxui/component/component_base.hpp"  // for ComponentBase
-#include "ftxui/component/component_options.hpp"  // for InputOption
 #include "ftxui/component/screen_interactive.hpp"  // for Component, ScreenInteractive
-#include "ftxui/dom/elements.hpp"  // for text, hbox, separator, Element, operator|, vbox, border
-#include "ftxui/util/ref.hpp"  // for Ref
-#include "openai.h"
 
-static const std::string OPENAI_KEY = "";
-
+#include "tokenizer.h"
+#include "nlp/sentencevectormap.h"
 std::string toUppercase(const std::string &str) {
     std::string result = "";
 
@@ -38,18 +33,9 @@ std::string toLowercase(const std::string &str) {
     return result;
 }
 
-void requestToOpenAI(const std::string &prompt, const std::string &model) {
-
-}
-
 
 int main() {
 
-
-    openai::start(OPENAI_KEY);
-
-
-    std::cout << completion.dump(2) << std::endl;
     using namespace ftxui;
 
     // The data:
@@ -77,6 +63,10 @@ int main() {
     Component renderer;
     auto screen = ScreenInteractive::TerminalOutput();
 
+    //Initialize tokenizer
+    tokenizer tok;
+    //Initialize sentence vector mapper
+    sentencevectormap sentenceVecMap(100);
 
 
     //Insert chatbot response in chat
@@ -89,38 +79,39 @@ int main() {
         //Insert user response in chat
         statements.push_back(hbox({color(baseColor, text("YOU: ")), color(Color::BlueLight, text(first_name))}));
 
-        //Insert chatbot response in chat
-        auto completion = openai::completion().create(openai::Json({
-            {"model", "gpt-4o-mini"},
-            {"prompt", first_name},
-            {"temperature", 0}
-        }));
 
-        statements.push_back(hbox({color(baseColor, text("Them: ")), color(Color::BlueLight, text(completion.dump(2)))}));
-
-
-        /*
+        //Insert chat-bot response in chat
         std::basic_string prompt = toLowercase(first_name);
+
+        //Begin with Natural Language Processing (NLP)
+
+        //Tokenize
+        std::vector<std::string> tokens = tok.tokenize(prompt, ' ');
+
+        //Find average vector representation of this sentence
+        std::vector<double> vec = sentenceVecMap.get_vector(tokens);
+
+
         if (prompt.find("good") != std::string::npos || prompt.find("fine") != std::string::npos) {
-            statements.push_back(hbox({color(baseColor, text("Them: ")),
+            statements.push_back(hbox({color(baseColor, text("AI: ")),
                                        color(Color::BlueLight, text("GOOD TO HEAR!"))}));
             threads.emplace_back(
                     [&baseColor, &statements, &screen, &responding]() {
                         responding = true;
                         std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-                        statements.push_back(hbox({color(baseColor, text("Them: ")),
+                        statements.push_back(hbox({color(baseColor, text("AI: ")),
                                                    color(Color::BlueLight, text("TELL ME MORE ABOUT YOURSELF"))}));
                         screen.PostEvent(Event::Custom);
                         responding = false;
                     });
 
         } else if (prompt.find("bad") != std::string::npos || prompt.find("terrible") != std::string::npos) {
-            statements.push_back(hbox({color(baseColor, text("Them: ")),
+            statements.push_back(hbox({color(baseColor, text("AI: ")),
                                        color(Color::BlueLight, text("I AM SORRY TO HEAR THAT."))}));
             threads.emplace_back([&baseColor, &statements, &screen, &responding]() {
                 responding = true;
                 std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-                statements.push_back(hbox({color(baseColor, text("Them: ")),
+                statements.push_back(hbox({color(baseColor, text("AI: ")),
                                            color(Color::BlueLight, text("WHAT IS BOTHERING YOU?"))}));
                 screen.PostEvent(Event::Custom);
                 responding = false;
@@ -133,13 +124,13 @@ int main() {
             if (response.find("me") != std::string::npos) {
                 response = response.replace(prompt.find("me"), 2, "YOU");
             }
-            statements.push_back(hbox({color(baseColor, text("Them: ")),
+            statements.push_back(hbox({color(baseColor, text("AI: ")),
                                        color(Color::BlueLight, text(toUppercase(response)))}));
         } else {
-            statements.push_back(hbox({color(baseColor, text("Them: ")),
+            statements.push_back(hbox({color(baseColor, text("AI: ")),
                                        color(Color::BlueLight,
                                              text("COULD YOU ELABORATE? I DID NOT UNDERSTAND YOU"))}));
-        }*/
+        }
 
         //Insert new user chat box option for the next message
         InputOption new_input_option;
@@ -200,7 +191,7 @@ int main() {
                             color(baseColor, text(thirdSpace + "  YYY       OOO     UUU")),
                             separator(),
                             hbox({
-                                         color(baseColor, text("Them: ")),
+                                         color(baseColor, text("AI: ")),
                                          color(Color::BlueLight, text("HOW ARE YOU?"))}),
                             vbox(statements),
 
